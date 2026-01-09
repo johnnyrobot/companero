@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111111">
+  <title>Companero</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23111'/%3E%3Ctext x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif' font-size='28' fill='%23fff'%3ECo%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1 id="app-title" data-key="appTitle">Companero</h1>
+    <button id="install-btn" class="btn" hidden data-key="installApp">Install app</button>
+    <button id="language-toggle" class="btn">Español</button>
+    <button id="check-updates-btn" class="btn" data-key="checkUpdates">Check for updates</button>
+    <button id="delete-all-btn" class="btn danger" data-key="deleteEverything">Delete Everything</button>
+    <div>
+      <small id="ios-install-hint" class="hint" data-key="installIosHint" hidden>To install this app on your iPhone, tap the Share button and then 'Add to Home Screen'.</small>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <section id="update-banner" class="card" hidden aria-live="polite">
+      <div class="list-header">
+        <h2 data-key="updateAvailable">Update available</h2>
+        <div class="list-actions">
+          <button id="reload-btn" type="button" class="btn primary" data-key="reload">Reload</button>
+        </div>
+      </div>
+    </section>
+    <section aria-labelledby="profile-title" class="card profile-card" role="complementary">
+      <h2 id="profile-title" data-key="studentInfo">Student Info</h2>
+      <div class="field">
+        <label for="student-id" data-key="studentId">Student ID</label>
+        <input id="student-id" name="studentId" type="text" autocomplete="off" placeholder="e.g., A00123456">
+        <small class="hint" data-key="savedOnDevice">Saved on this device</small>
+      </div>
+      <div class="field">
+        <label for="student-email" data-key="studentEmail">Student email</label>
+        <input id="student-email" name="studentEmail" type="email" autocomplete="off" placeholder="e.g., name@school.edu">
+        <small class="hint" data-key="savedOnDevice">Saved on this device</small>
+      </div>
+    </section>
+    <section aria-labelledby="form-title" class="card">
+      <h2 id="form-title" data-key="addEditClass">Add or Edit Class</h2>
+      <form id="class-form" novalidate>
+        <input type="hidden" id="class-id" name="id">
+
+        <div class="field">
+          <label for="class-name" data-key="className">Class name</label>
+          <input id="class-name" name="name" type="text" autocomplete="off" required placeholder="e.g., Calculus I">
+          <small class="hint" id="name-hint" data-key="required">Required</small>
+        </div>
+
+        <div class="field">
+          <label for="section" data-key="sectionNumber">Section number</label>
+          <input id="section" name="section" type="text" autocomplete="off" placeholder="e.g., 001 or A2">
+        </div>
+
+        <div class="field">
+          <label for="days-times" data-key="daysAndTimes">Days and times</label>
+          <input id="days-times" name="daysTimes" type="text" autocomplete="off" placeholder="e.g., Mon/Wed/Fri 9:00–9:50 AM">
+        </div>
+
+        <div class="field">
+          <label for="location" data-key="location">Location</label>
+          <input id="location" name="location" type="text" autocomplete="off" placeholder="e.g., Room 204, Science Hall">
+        </div>
+
+        <div class="field">
+          <label for="notes" data-key="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="3" placeholder="Professor, office hours, syllabus link, etc."></textarea>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn primary" id="save-btn" data-key="saveClass">Save class</button>
+          <button type="button" class="btn" id="clear-btn" data-key="clearForm">Clear form</button>
+        </div>
+      </form>
+    </section>
+
+    <section aria-labelledby="list-title" class="card">
+      <div class="list-header">
+        <h2 id="list-title" data-key="yourClasses">Your Classes</h2>
+        <div class="list-actions">
+          <input id="search" type="search" placeholder="Search classes" aria-label="Search classes" data-key="searchClassesPlaceholder">
+          <button type="button" class="btn" id="add-new-btn" aria-describedby="add-hint" data-key="addNew">Add new</button>
+          <small id="add-hint" class="visually-hidden" data-key="addNewHint">Adds a new empty class form</small>
+          <button type="button" class="btn" id="export-btn" data-key="export">Export</button>
+          <label class="btn" for="import-input" id="import-label" data-key="import">Import</label>
+          <input id="import-input" type="file" accept="application/json" class="visually-hidden" aria-labelledby="import-label">
+        </div>
+      </div>
+      <ul id="class-list" class="list" role="list" aria-live="polite" aria-busy="false"></ul>
+      <p id="empty-state" class="muted" data-key="noClassesYet">No classes yet. Add your first class above.</p>
+      <p id="update-status-live" class="visually-hidden" aria-live="polite"></p>
+    </section>
+
+    <!-- What's New dialog shown after update -->
+    <section id="whats-new" class="card" hidden role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
+      <h2 id="whats-new-title" data-key="whatsNewTitle">What’s new</h2>
+      <p id="whats-new-body" data-key="whatsNewBody">The app was updated. Enjoy the latest improvements!</p>
+      <div class="actions">
+        <button id="whats-new-dismiss" class="btn primary" type="button" data-key="gotIt">Got it</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p data-key="footerText">Local-only, offline-capable. Your data stays on this device.</p>
+    <div class="list-actions" style="justify-content:center; margin-top: 0.5rem; gap: 0.75rem;">
+      <label for="toggle-accents"><input id="toggle-accents" type="checkbox" checked> <span data-key="colorAccents">Color accents</span></label>
+      <span id="version-label"><span data-key="version">Version</span>: <code id="app-version">—</code></span>
+    </div>
+  </footer>
+
+  <script src="./translations.js"></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>
