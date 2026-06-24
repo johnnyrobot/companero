@@ -46,3 +46,21 @@ test('build hash is deterministic for identical input', async () => {
   const r2 = await build({ srcDir: b.src, outDir: b.out });
   assert.equal(r1.buildHash, r2.buildHash);
 });
+
+test('templates service worker CACHE_NAME and APP_SHELL', async () => {
+  const { src, out } = await fixture();
+  const { buildHash } = await build({ srcDir: src, outDir: out });
+  const sw = await readFile(join(out, 'service-worker.js'), 'utf8');
+  assert.match(sw, new RegExp(`const CACHE_NAME = 'companero-${buildHash}'`));
+  assert.match(sw, /APP_SHELL = \[[\s\S]*app\.[0-9a-f]{8}\.js[\s\S]*\]/);
+  assert.doesNotMatch(sw, /companero-dev/);
+});
+
+test('rewrites manifest icon srcs to hashed paths', async () => {
+  const { src, out } = await fixture();
+  await build({ srcDir: src, outDir: out });
+  const manifest = JSON.parse(await readFile(join(out, 'manifest.webmanifest'), 'utf8'));
+  for (const icon of manifest.icons) {
+    assert.match(icon.src, /icons\/icon-(192|512|maskable-512)\.[0-9a-f]{8}\.png/);
+  }
+});

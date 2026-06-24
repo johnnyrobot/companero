@@ -34,6 +34,26 @@ export async function build({ srcDir, outDir }) {
   }
   await writeFile(join(outDir, 'index.html'), html);
 
+  // service-worker.js: inject build hash + hashed precache shell
+  const shell = [
+    './', './index.html',
+    `./${hashes.get('styles.css')}`,
+    `./${hashes.get('app.js')}`,
+    `./${hashes.get('translations.js')}`,
+    './manifest.webmanifest',
+    `./${hashes.get('icons/icon-192.png')}`,
+    `./${hashes.get('icons/icon-512.png')}`,
+  ];
+  let sw = await readFile(join(srcDir, 'service-worker.js'), 'utf8');
+  sw = sw.replace(/const CACHE_NAME = '[^']*';/, `const CACHE_NAME = 'companero-${buildHash}';`);
+  sw = sw.replace(/const APP_SHELL = \[[\s\S]*?\];/, `const APP_SHELL = ${JSON.stringify(shell, null, 2)};`);
+  await writeFile(join(outDir, 'service-worker.js'), sw);
+
+  // manifest.webmanifest: rewrite icon srcs
+  const manifest = JSON.parse(await readFile(join(srcDir, 'manifest.webmanifest'), 'utf8'));
+  manifest.icons = manifest.icons.map(icon => ({ ...icon, src: hashes.get(icon.src) || icon.src }));
+  await writeFile(join(outDir, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2));
+
   return { hashes, buildHash };
 }
 
