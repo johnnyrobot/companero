@@ -1,0 +1,48 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { build } from '../build.mjs';
+
+async function fixture() {
+  const src = await mkdtemp(join(tmpdir(), 'cmp-src-'));
+  const out = await mkdtemp(join(tmpdir(), 'cmp-out-'));
+  await writeFile(join(src, 'app.js'), 'console.log("app");');
+  await writeFile(join(src, 'styles.css'), 'body{color:#fff}');
+  await writeFile(join(src, 'translations.js'), 'const t={};');
+  await mkdir(join(src, 'icons'), { recursive: true });
+  await writeFile(join(src, 'icons', 'icon-192.png'), Buffer.from('png192'));
+  await writeFile(join(src, 'icons', 'icon-512.png'), Buffer.from('png512'));
+  await writeFile(join(src, 'icons', 'icon-maskable-512.png'), Buffer.from('pngmask'));
+  await writeFile(join(src, 'manifest.webmanifest'),
+    JSON.stringify({ icons: [{ src: 'icons/icon-192.png' }, { src: 'icons/icon-512.png' }, { src: 'icons/icon-maskable-512.png' }] }));
+  await writeFile(join(src, 'service-worker.js'),
+    "const CACHE_NAME = 'companero-dev';\nconst APP_SHELL = ['./','./index.html'];\n");
+  await writeFile(join(src, 'index.html'),
+    '<link rel="stylesheet" href="./styles.css">' +
+    '<script src="./translations.js"></script>' +
+    '<script src="./app.js" defer></script>');
+  return { src, out };
+}
+
+test('hashes assets and rewrites index.html refs', async () => {
+  const { src, out } = await fixture();
+  await build({ srcDir: src, outDir: out });
+  const files = await readdir(out);
+  assert.ok(files.some(f => /^app\.[0-9a-f]{8}\.js$/.test(f)), 'hashed app.js present');
+  assert.ok(files.some(f => /^styles\.[0-9a-f]{8}\.css$/.test(f)), 'hashed styles.css present');
+  assert.ok(files.some(f => /^translations\.[0-9a-f]{8}\.js$/.test(f)), 'hashed translations.js present');
+  const html = await readFile(join(out, 'index.html'), 'utf8');
+  assert.doesNotMatch(html, /\.\/app\.js/, 'raw app.js ref removed');
+  assert.match(html, /\.\/app\.[0-9a-f]{8}\.js/, 'hashed app.js ref written');
+  assert.match(html, /\.\/styles\.[0-9a-f]{8}\.css/, 'hashed styles.css ref written');
+});
+
+test('build hash is deterministic for identical input', async () => {
+  const a = await fixture();
+  const b = await fixture();
+  const r1 = await build({ srcDir: a.src, outDir: a.out });
+  const r2 = await build({ srcDir: b.src, outDir: b.out });
+  assert.equal(r1.buildHash, r2.buildHash);
+});
