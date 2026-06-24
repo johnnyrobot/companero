@@ -742,7 +742,9 @@ Use the printed `sha256:...` values in the next step (replace `<NODE_DIGEST>` / 
 FROM node:22-alpine@<NODE_DIGEST> AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# build.mjs uses only Node built-ins; sharp/jsdom are dev-only (icon-gen/tests).
+# --omit=dev avoids compiling native sharp in the Alpine build stage.
+RUN npm ci --omit=dev
 COPY . .
 RUN npm run build
 
