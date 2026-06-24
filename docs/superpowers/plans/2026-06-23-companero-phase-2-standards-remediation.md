@@ -896,8 +896,13 @@ git commit -m "ci: bump actions to Node-24 majors; add unit-test + build stage"
 **Files:**
 - Create: `src/dialogs.js`
 - Create: `tests/dialogs.test.mjs`
-- Modify: `app.js` (replace `confirm()`/`alert()` call sites)
+- Modify: `app.js` (convert to ES module; replace ALL 9 `confirm()`/`alert()` call sites)
+- Modify: `index.html` (load `app.js` as `<script type="module">`)
 - Modify: `styles.css` (dialog styling)
+- Modify: `build.mjs` (register `src/` ES modules: copy verbatim + fold bytes into `buildHash` + add to SW `APP_SHELL`)
+- Modify: `tests/build.test.mjs` (fixtures must create `src/dialogs.js`; add regression tests)
+- Modify: `nginx.conf` (add `^~ /src/` no-cache location)
+- Modify: `scripts/smoke-test.sh` (assert `/src/dialogs.js` serves `no-cache`)
 
 **Interfaces:**
 - Produces: `export function confirmDialog(message)` → `Promise<boolean>` and `export function alertDialog(message)` → `Promise<void>`, rendering an accessible modal (`role="dialog"`, `aria-modal="true"`, focus moved to the dialog, `Escape`/backdrop = cancel). Consumed by `app.js` in place of native blocking dialogs.
@@ -1007,9 +1012,72 @@ export function alertDialog(message, { confirmLabel = 'OK' } = {}) {
 Run: `npm test`
 Expected: PASS — both `dialogs.test.mjs` cases green.
 
-- [ ] **Step 5: Wire into `app.js` + style**
+- [ ] **Step 5: Register `src/` modules in `build.mjs` (caching fix — do NOT `cp` verbatim)**
 
-In `index.html`, the `app.js` script tag stays; add `import { confirmDialog, alertDialog } from './src/dialogs.js';` is not possible with a classic script — so register `app.js` as a module. Change `index.html`:
+`src/dialogs.js` is imported by the content-hashed `app.js`. A naive verbatim copy would (a) fall to nginx `location /` with no `Cache-Control` and (b) not affect `buildHash`/`CACHE_NAME` — reintroducing Gaps #2/#3 for that module. **Resolution (decided):** keep a **stable filename**, **fold its bytes into `buildHash`** (so any change busts `CACHE_NAME`), **precache it in `APP_SHELL`**, and serve it **`no-cache`** from nginx (Step 8). Do not content-hash its filename and do not rewrite import specifiers — `app.js`'s `import './src/dialogs.js'` is relative to `app.js`'s directory and is unaffected by `app.js`'s own hashing.
+
+Edit `build.mjs`:
+
+After the `HASHED_ICONS` constant, add:
+```js
+const COPIED_MODULES = ['src/dialogs.js']; // stable-named ES modules imported by app.js; bytes folded into buildHash, precached, served no-cache
+```
+After `await mkdir(join(outDir, 'icons'), { recursive: true });` add:
+```js
+  await mkdir(join(outDir, 'src'), { recursive: true });
+```
+Immediately AFTER the `for (const rel of [...HASHED_ASSETS, ...HASHED_ICONS]) { ... }` loop and BEFORE `const buildHash = ...`, add:
+```js
+  // Stable-named modules: copy verbatim, fold bytes into buildHash so any change busts CACHE_NAME.
+  for (const rel of COPIED_MODULES) {
+    const bytes = await readFile(join(srcDir, rel));
+    orderedHashes.push(`${rel}:${hash8(bytes)}`);
+    await writeFile(join(outDir, rel), bytes);
+  }
+```
+In the `shell` array, add a final entry so the module is precached:
+```js
+    `./${hashes.get('icons/icon-512.png')}`,
+    ...COPIED_MODULES.map((rel) => `./${rel}`),
+  ];
+```
+
+- [ ] **Step 6: Build regression tests (`tests/build.test.mjs`)**
+
+The shared `fixture()` AND the inline fixture inside the "throws when manifest icon src is not in hashes" test must now also create `src/dialogs.js`, or `build()` throws `ENOENT`. In BOTH fixtures, after the icons are written, add:
+```js
+  await mkdir(join(src, 'src'), { recursive: true });
+  await writeFile(join(src, 'src', 'dialogs.js'), 'export function confirmDialog(){}');
+```
+Then add these tests:
+```js
+test('copies src modules verbatim with stable names', async () => {
+  const { src, out } = await fixture();
+  await build({ srcDir: src, outDir: out });
+  const mod = await readFile(join(out, 'src', 'dialogs.js'), 'utf8');
+  assert.equal(mod, 'export function confirmDialog(){}', 'src/dialogs.js copied byte-for-byte');
+});
+
+test('src module changes bust the build hash (CACHE_NAME)', async () => {
+  const a = await fixture();
+  const r1 = await build({ srcDir: a.src, outDir: a.out });
+  await writeFile(join(a.src, 'src', 'dialogs.js'), 'export function confirmDialog(){ return 1; }');
+  const r2 = await build({ srcDir: a.src, outDir: a.out });
+  assert.notEqual(r1.buildHash, r2.buildHash, 'changing a src module must change buildHash');
+});
+
+test('precaches src modules in APP_SHELL', async () => {
+  const { src, out } = await fixture();
+  await build({ srcDir: src, outDir: out });
+  const sw = await readFile(join(out, 'service-worker.js'), 'utf8');
+  assert.match(sw, /\.\/src\/dialogs\.js/, 'src module present in APP_SHELL');
+});
+```
+Run: `npm test` — expected PASS (existing build tests still green + 3 new).
+
+- [ ] **Step 7: Wire dialogs into `app.js` + `index.html` + `styles.css`**
+
+In `index.html`, make `app.js` a module (translations.js stays a classic script — it runs at parse time, before the deferred module, so its globals stay available; verified there are no inline `on*=` handlers depending on `app.js` globals):
 ```html
   <script src="./translations.js"></script>
   <script type="module" src="./app.js"></script>
@@ -1018,10 +1086,14 @@ At the top of `app.js` add:
 ```js
 import { confirmDialog, alertDialog } from './src/dialogs.js';
 ```
-Replace each `confirm(<msg>)` with `await confirmDialog(<msg>)` and each `alert(<msg>)` with `await alertDialog(<msg>)`, making the enclosing handlers `async` (call sites: delete-all handler, per-item delete, import replace/complete/failed, iOS install hint, manual update "up to date"). Add to `build.mjs` `HASHED_ASSETS`? No — `src/dialogs.js`/`src/store.js` are ES modules imported by the hashed `app.js`; add them to the build so they are copied and (optionally) hashed. Simplest: in `build.mjs`, also copy the `src/` directory verbatim into `dist/src/` (imports use relative `./src/...`). Append to `build()` before `return`:
-```js
-  await cp(join(srcDir, 'src'), join(outDir, 'src'), { recursive: true });
-```
+Replace **all 9** call sites (grep `\b(confirm|alert)\s*\(` to confirm none are missed). `confirm(x)` → `await confirmDialog(x)`, `alert(x)` → `await alertDialog(x)`, and the enclosing function must be `async`:
+- L184 (`deleteAllBtn` handler — already `async`): `const ok = await confirmDialog(message);`
+- L272 (`delBtn` handler — make `async`): `delBtn.addEventListener('click', async () => { if (await confirmDialog(t('confirmDelete'))) deleteItem(item.id); });`
+- L340/353/355 (`reader.onload` — make `async`): `if (!(await confirmDialog(t('importReplaceConfirm')))) return;` … `await alertDialog(t('importComplete'));` … `await alertDialog(t('importFailed'));` (the `finally { importInput.value=''; }` stays)
+- L509 (`checkUpdatesBtn` handler — already `async`): `await alertDialog(msg);`
+- L539 (inside `setTimeout(() => {...}, 400)` — make the callback `async`): `setTimeout(async () => { … await alertDialog(msg); … }, 400);`
+- L546 (catch block of the already-`async` handler): `await alertDialog(msg);`
+- L577 (iOS install handler — make `async`): `installBtn.addEventListener('click', async () => { await alertDialog(t('installIosHint')); });`
 
 Add to `styles.css`:
 ```css
@@ -1031,21 +1103,41 @@ Add to `styles.css`:
 .dialog-actions { display: flex; gap: .5rem; justify-content: flex-end; }
 ```
 
-- [ ] **Step 6: Verify build still passes + dialogs reachable**
+- [ ] **Step 8: nginx — serve `/src/` modules `no-cache`**
+
+In `nginx.conf`, after the content-hashed `location ~* "..."` block, add:
+```nginx
+  # Stable-named ES modules under /src/ (no content hash) → must always revalidate.
+  location ^~ /src/ {
+    include /etc/nginx/conf.d/security-headers.conf;
+    add_header Cache-Control "no-cache" always;
+    try_files $uri =404;
+  }
+```
+In `scripts/smoke-test.sh`, mirror the existing `index.html` no-cache assertion for the module (match the script's existing variable names / assertion style), e.g.:
+```sh
+curl -sI "$BASE/src/dialogs.js" | grep -qi 'cache-control: no-cache' || { echo "FAIL: /src/dialogs.js not no-cache"; exit 1; }
+```
+
+- [ ] **Step 9: Verify build + dialogs reachable**
 
 Run: `npm test && npm run build`
-Expected: PASS; `dist/src/dialogs.js` exists after build.
+Expected: PASS; `dist/src/dialogs.js` exists; `dist/service-worker.js` `APP_SHELL` contains `./src/dialogs.js`; `dist/index.html` loads `app.<hash>.js` as a module.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add src/dialogs.js tests/dialogs.test.mjs app.js index.html styles.css build.mjs
-git commit -m "feat(a11y): non-blocking accessible confirm/alert dialogs"
+git add src/dialogs.js tests/dialogs.test.mjs tests/build.test.mjs app.js index.html styles.css build.mjs nginx.conf scripts/smoke-test.sh
+git commit -m "feat(a11y): non-blocking accessible confirm/alert dialogs
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 11: IndexedDB storage with localStorage migration (Gap #9) — OPTIONAL/LAST
+### Task 11: IndexedDB storage with localStorage migration (Gap #9) — OPTIONAL/LAST — ❌ CLOSED (not implemented)
+
+> **DECISION (2026-06-24):** Gap #9 closed as **accepted — `localStorage` is sufficient for this scope**. The dataset is a handful of class records; the local-only privacy invariant is already satisfied by `localStorage`, and the IndexedDB migration (sync → async across every `app.js` call site) is a large refactor with no current payoff. The steps below are retained for reference only and are **NOT to be executed**. Revisit only if data growth or cross-tab/resilience needs emerge.
 
 > **YAGNI note:** The dataset is a handful of class records; `localStorage` is adequate. This task is the lowest-value item and the largest refactor (sync → async). Implement only if data growth or resilience is genuinely anticipated; otherwise close Gap #9 as "accepted — localStorage sufficient for scope." Keep the `student_planner.classes.v1` / `course_companion.profile.v1` keys for one-time migration.
 
@@ -1207,7 +1299,7 @@ git commit -m "feat(storage): IndexedDB store with one-time localStorage migrati
 - #6 missing security headers → Task 7 (`security-headers.conf`). ✓
 - #7 outdated GitHub Actions on Node 20 → Task 9 (checkout@v5, setup-buildx@v4, build-push@v7). ✓
 - #8 manifest missing `id` → Task 5. ✓
-- #9 localStorage → Task 11 (IndexedDB + migration; YAGNI-flagged). ✓
+- #9 localStorage → Gap CLOSED 2026-06-24 as "accepted — localStorage sufficient for scope" (Task 11 not implemented; YAGNI). ✓
 - #10 blocking confirm()/alert() → Task 10 (accessible dialogs). ✓
 - Already-compliant `docker-compose.yml` (no `version:` key) → left unchanged by design. ✓
 
