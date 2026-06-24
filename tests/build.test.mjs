@@ -37,8 +37,11 @@ test('hashes assets and rewrites index.html refs', async () => {
   assert.ok(files.some(f => /^translations\.[0-9a-f]{8}\.js$/.test(f)), 'hashed translations.js present');
   const html = await readFile(join(out, 'index.html'), 'utf8');
   assert.doesNotMatch(html, /\.\/app\.js/, 'raw app.js ref removed');
+  assert.doesNotMatch(html, /\.\/styles\.css/, 'raw styles.css ref removed');
+  assert.doesNotMatch(html, /\.\/translations\.js/, 'raw translations.js ref removed');
   assert.match(html, /\.\/app\.[0-9a-f]{8}\.js/, 'hashed app.js ref written');
   assert.match(html, /\.\/styles\.[0-9a-f]{8}\.css/, 'hashed styles.css ref written');
+  assert.match(html, /\.\/translations\.[0-9a-f]{8}\.js/, 'hashed translations.js ref written');
 });
 
 test('build hash is deterministic for identical input', async () => {
@@ -54,7 +57,15 @@ test('templates service worker CACHE_NAME and APP_SHELL', async () => {
   const { buildHash } = await build({ srcDir: src, outDir: out });
   const sw = await readFile(join(out, 'service-worker.js'), 'utf8');
   assert.match(sw, new RegExp(`const CACHE_NAME = 'companero-${buildHash}'`));
-  assert.match(sw, /APP_SHELL = \[[\s\S]*app\.[0-9a-f]{8}\.js[\s\S]*\]/);
+  const shellMatch = sw.match(/APP_SHELL = (\[[\s\S]*?\]);/);
+  assert.ok(shellMatch, 'APP_SHELL array present in service worker');
+  const shell = JSON.parse(shellMatch[1]);
+  for (const entry of ['./', './index.html', './manifest.webmanifest']) {
+    assert.ok(shell.includes(entry), `APP_SHELL includes ${entry}`);
+  }
+  assert.ok(shell.some(e => /^\.\/app\.[0-9a-f]{8}\.js$/.test(e)), 'APP_SHELL has hashed app.js');
+  assert.ok(shell.some(e => /^\.\/styles\.[0-9a-f]{8}\.css$/.test(e)), 'APP_SHELL has hashed styles.css');
+  assert.ok(shell.some(e => /^\.\/translations\.[0-9a-f]{8}\.js$/.test(e)), 'APP_SHELL has hashed translations.js');
   assert.doesNotMatch(sw, /companero-dev/);
 });
 

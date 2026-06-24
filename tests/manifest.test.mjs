@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 test('manifest has id and split icon purposes', async () => {
-  const m = JSON.parse(await readFile('manifest.webmanifest', 'utf8'));
+  const m = JSON.parse(await readFile(new URL('../manifest.webmanifest', import.meta.url), 'utf8'));
   assert.ok(m.id, 'has id');
   const purposes = m.icons.map(i => i.purpose);
   assert.ok(!purposes.some(p => /any\s+maskable|maskable\s+any/.test(p || '')), 'no combined any+maskable');

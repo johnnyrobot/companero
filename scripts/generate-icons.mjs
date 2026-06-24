@@ -7,8 +7,8 @@ const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sa
 
 // Full-bleed "Co" lettermark on a rounded-square background.
 const svg = (size, inset) => {
-  const r = Math.round(size * 0.18);
-  const fontSize = Math.round((size - inset * 2) * 0.42);
+  const r = Math.round(size * 0.18);                       // corner radius ≈ 18% of size (rounded square)
+  const fontSize = Math.round((size - inset * 2) * 0.42);  // "Co" fills ≈ 42% of the usable (inset-adjusted) box
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
     <rect width="${size}" height="${size}" rx="${r}" fill="${BG}"/>
     <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle"

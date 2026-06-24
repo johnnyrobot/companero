@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HASHED_ASSETS = ['app.js', 'styles.css', 'translations.js'];
 const HASHED_ICONS = ['icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
@@ -71,7 +71,7 @@ export async function build({ srcDir, outDir }) {
   return { hashes, buildHash };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const root = dirname(fileURLToPath(import.meta.url));
   await build({ srcDir: root, outDir: join(root, 'dist') });
   console.log('build: dist/ ready');

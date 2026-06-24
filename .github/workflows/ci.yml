@@ -43,6 +43,7 @@ jobs:
         run: |
           docker run -d --rm -p 8080:80 --name cc companero:test
           for i in $(seq 1 20); do curl -fsS http://localhost:8080/ >/dev/null 2>&1 && break; sleep 0.5; done
+          curl -fsS http://localhost:8080/ >/dev/null 2>&1 || { echo "FAIL: container did not become ready within ~10s"; docker logs cc; exit 1; }
           curl -sI http://localhost:8080/index.html | grep -iq 'cache-control: no-cache'
           curl -sI http://localhost:8080/index.html | grep -iq 'content-security-policy'
       - name: Stop container

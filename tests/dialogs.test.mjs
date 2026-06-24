@@ -66,3 +66,17 @@ test('confirmDialog focus trap wraps Tab from last to first button', async () =>
   confirmBtn.click();
   await p;
 });
+
+test('restores focus to the previously-focused element on close', async () => {
+  const dom = new JSDOM('<!doctype html><body><button id="trigger">Open</button></body>');
+  global.document = dom.window.document;
+  global.HTMLElement = dom.window.HTMLElement;
+  const trigger = document.getElementById('trigger');
+  trigger.focus();
+  assert.equal(document.activeElement, trigger, 'trigger focused before dialog opens');
+  const p = confirmDialog('Delete?');
+  assert.notEqual(document.activeElement, trigger, 'focus moves into the dialog');
+  document.querySelector('[data-dialog-confirm]').click();
+  await p;
+  assert.equal(document.activeElement, trigger, 'focus restored to trigger after close');
+});

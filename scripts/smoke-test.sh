@@ -5,6 +5,7 @@ docker build -t "$IMG" .
 docker run -d --rm -p 8099:80 --name companero_smoke "$IMG"
 trap 'docker stop companero_smoke >/dev/null 2>&1 || true' EXIT
 for i in $(seq 1 20); do curl -fsS http://localhost:8099/ >/dev/null 2>&1 && break; sleep 0.5; done
+curl -fsS http://localhost:8099/ >/dev/null 2>&1 || { echo "FAIL: container did not become ready within ~10s"; docker logs companero_smoke; exit 1; }
 
 # index.html must be no-cache + carry CSP
 idx=$(curl -sI http://localhost:8099/index.html)

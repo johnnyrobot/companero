@@ -4,3 +4,11 @@ tests
 .git
 .github
 docs
+scripts
+Dockerfile
+docker-compose.yml
+*.md
+.gitignore
+.dockerignore
+.superpowers
+.claude

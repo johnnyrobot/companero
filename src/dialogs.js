@@ -4,6 +4,7 @@ let msgCounter = 0;
 
 function openDialog({ message, confirmLabel, cancelLabel }) {
   return new Promise((resolve) => {
+    const previouslyFocused = document.activeElement;
     const backdrop = document.createElement('div');
     backdrop.className = 'dialog-backdrop';
     const dialog = document.createElement('div');
@@ -43,6 +44,8 @@ function openDialog({ message, confirmLabel, cancelLabel }) {
     function close(value) {
       backdrop.remove();
       document.removeEventListener('keydown', onKey);
+      // Restore focus to whatever was focused before the dialog opened.
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function') previouslyFocused.focus();
       resolve(value);
     }
     function onKey(e) {
