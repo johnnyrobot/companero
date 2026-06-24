@@ -1,5 +1,7 @@
 // src/dialogs.js — accessible, non-blocking replacements for confirm()/alert().
 
+let msgCounter = 0;
+
 function openDialog({ message, confirmLabel, cancelLabel }) {
   return new Promise((resolve) => {
     const backdrop = document.createElement('div');
@@ -9,9 +11,13 @@ function openDialog({ message, confirmLabel, cancelLabel }) {
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
 
+    // Accessible name: link dialog to its message text via a stable, incrementing id.
+    const id = 'dialog-msg-' + (++msgCounter);
     const text = document.createElement('p');
     text.className = 'dialog-message';
+    text.id = id;
     text.textContent = message;
+    dialog.setAttribute('aria-labelledby', id);
 
     const actions = document.createElement('div');
     actions.className = 'dialog-actions';
@@ -31,12 +37,32 @@ function openDialog({ message, confirmLabel, cancelLabel }) {
       cancelBtn.setAttribute('data-dialog-cancel', '');
     }
 
+    // focusable elements in DOM order: cancelBtn (prepended) comes first, confirmBtn last.
+    const focusable = cancelBtn ? [cancelBtn, confirmBtn] : [confirmBtn];
+
     function close(value) {
       backdrop.remove();
       document.removeEventListener('keydown', onKey);
       resolve(value);
     }
-    function onKey(e) { if (e.key === 'Escape' && cancelLabel != null) close(false); }
+    function onKey(e) {
+      if (e.key === 'Escape' && cancelLabel != null) close(false);
+      if (e.key === 'Tab') {
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    }
 
     confirmBtn.addEventListener('click', () => close(cancelLabel != null ? true : undefined));
     cancelBtn?.addEventListener('click', () => close(false));
