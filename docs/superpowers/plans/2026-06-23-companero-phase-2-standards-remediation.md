@@ -670,7 +670,7 @@ server {
   }
 
   # Content-hashed assets (filenames change on every content change) → immutable.
-  location ~* \.[0-9a-f]{8}\.(css|js|png|jpg|jpeg|gif|webp|svg|ico|woff2?)$ {
+  location ~* "\.[0-9a-f]{8}\.(css|js|png|jpg|jpeg|gif|webp|svg|ico|woff2?)$" {
     include /etc/nginx/conf.d/security-headers.conf;
     add_header Cache-Control "public, max-age=31536000, immutable" always;
     try_files $uri =404;
