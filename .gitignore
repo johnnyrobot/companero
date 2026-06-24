@@ -22,6 +22,9 @@ node_modules/
 
 # Docker (commit Dockerfile and compose; nothing to ignore here)
 
+# Build artifacts
+dist/
+
 # Embedded repos
 github-mcp-server/
 UsersjohnnyrobotDocumentsClineMCPgithub-mcp-server/
