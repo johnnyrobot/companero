@@ -64,3 +64,30 @@ test('rewrites manifest icon srcs to hashed paths', async () => {
     assert.match(icon.src, /icons\/icon-(192|512|maskable-512)\.[0-9a-f]{8}\.png/);
   }
 });
+
+test('throws when manifest icon src is not in hashes', async () => {
+  const src = await mkdtemp(join(tmpdir(), 'cmp-src-'));
+  const out = await mkdtemp(join(tmpdir(), 'cmp-out-'));
+  await writeFile(join(src, 'app.js'), 'console.log("app");');
+  await writeFile(join(src, 'styles.css'), 'body{color:#fff}');
+  await writeFile(join(src, 'translations.js'), 'const t={};');
+  await mkdir(join(src, 'icons'), { recursive: true });
+  await writeFile(join(src, 'icons', 'icon-192.png'), Buffer.from('png192'));
+  await writeFile(join(src, 'icons', 'icon-512.png'), Buffer.from('png512'));
+  await writeFile(join(src, 'icons', 'icon-maskable-512.png'), Buffer.from('pngmask'));
+  // Add an extra icon that is NOT in HASHED_ICONS
+  await writeFile(join(src, 'manifest.webmanifest'),
+    JSON.stringify({ icons: [{ src: 'icons/icon-192.png' }, { src: 'icons/icon-512.png' }, { src: 'icons/icon-maskable-512.png' }, { src: 'icons/missing.png' }] }));
+  await writeFile(join(src, 'service-worker.js'),
+    "const CACHE_NAME = 'companero-dev';\nconst APP_SHELL = ['./','./index.html'];\n");
+  await writeFile(join(src, 'index.html'),
+    '<link rel="stylesheet" href="./styles.css">' +
+    '<script src="./translations.js"></script>' +
+    '<script src="./app.js" defer></script>');
+
+  await assert.rejects(
+    () => build({ srcDir: src, outDir: out }),
+    /manifest icon src not in hashes: icons\/missing\.png/,
+    'should throw with message naming missing icon'
+  );
+});

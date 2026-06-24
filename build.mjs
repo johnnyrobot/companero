@@ -51,7 +51,11 @@ export async function build({ srcDir, outDir }) {
 
   // manifest.webmanifest: rewrite icon srcs
   const manifest = JSON.parse(await readFile(join(srcDir, 'manifest.webmanifest'), 'utf8'));
-  manifest.icons = manifest.icons.map(icon => ({ ...icon, src: hashes.get(icon.src) || icon.src }));
+  manifest.icons = manifest.icons.map(icon => {
+    const hashed = hashes.get(icon.src);
+    if (!hashed) throw new Error(`manifest icon src not in hashes: ${icon.src}`);
+    return { ...icon, src: hashed };
+  });
   await writeFile(join(outDir, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2));
 
   return { hashes, buildHash };
