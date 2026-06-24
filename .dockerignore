@@ -1,7 +1,6 @@
-.dockerignore
-.gitignore
-docker-compose.yml
-Dockerfile
-README.md
-github-mcp-server/
-UsersjohnnyrobotDocumentsClineMCPgithub-mcp-server/
+node_modules
+dist
+tests
+.git
+.github
+docs
