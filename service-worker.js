@@ -9,6 +9,11 @@ export function routeFor(req) {
   return 'asset';
 }
 
+// Only 2xx responses are safe to cache (avoid poisoning the cache with a transient 404/500).
+export function isCacheable(res) {
+  return !!res && res.ok;
+}
+
 const isSW = typeof self !== 'undefined' && 'ServiceWorkerGlobalScope' in self
   && self instanceof self.ServiceWorkerGlobalScope;
 
@@ -43,8 +48,10 @@ if (isSW) {
       // Network-first: pick up new deploys immediately; fall back to cache offline.
       event.respondWith(
         fetch(req).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put('./index.html', copy)).catch(() => {});
+          if (isCacheable(res)) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put('./index.html', copy)).catch(() => {});
+          }
           return res;
         }).catch(() => caches.match('./index.html').then((r) => r || caches.match(req)))
       );
@@ -54,8 +61,10 @@ if (isSW) {
     // Content-addressed assets are immutable → cache-first.
     event.respondWith(
       caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+        if (isCacheable(res)) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+        }
         return res;
       }).catch(() => new Response('Offline', { status: 503, statusText: 'Offline' })))
     );
