@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const HASHED_ASSETS = ['app.js', 'styles.css', 'translations.js'];
 const HASHED_ICONS = ['icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
+const COPIED_MODULES = ['src/dialogs.js']; // stable-named ES modules imported by app.js; bytes folded into buildHash, precached, served no-cache
 
 const hash8 = (buf) => createHash('sha256').update(buf).digest('hex').slice(0, 8);
 const hashedName = (path, h) => path.replace(/(\.[^.]+)$/, `.${h}$1`);
@@ -12,6 +13,7 @@ const hashedName = (path, h) => path.replace(/(\.[^.]+)$/, `.${h}$1`);
 export async function build({ srcDir, outDir }) {
   await rm(outDir, { recursive: true, force: true });
   await mkdir(join(outDir, 'icons'), { recursive: true });
+  await mkdir(join(outDir, 'src'), { recursive: true });
 
   const hashes = new Map();         // original path -> hashed path
   const orderedHashes = [];
@@ -23,6 +25,13 @@ export async function build({ srcDir, outDir }) {
     hashes.set(rel, outRel);
     orderedHashes.push(`${rel}:${h}`);
     await writeFile(join(outDir, outRel), bytes);
+  }
+
+  // Stable-named modules: copy verbatim, fold bytes into buildHash so any change busts CACHE_NAME.
+  for (const rel of COPIED_MODULES) {
+    const bytes = await readFile(join(srcDir, rel));
+    orderedHashes.push(`${rel}:${hash8(bytes)}`);
+    await writeFile(join(outDir, rel), bytes);
   }
 
   const buildHash = hash8(Buffer.from(orderedHashes.sort().join('|')));
@@ -43,6 +52,7 @@ export async function build({ srcDir, outDir }) {
     './manifest.webmanifest',
     `./${hashes.get('icons/icon-192.png')}`,
     `./${hashes.get('icons/icon-512.png')}`,
+    ...COPIED_MODULES.map((rel) => `./${rel}`),
   ];
   let sw = await readFile(join(srcDir, 'service-worker.js'), 'utf8');
   sw = sw.replace(/const CACHE_NAME = '[^']*';/, `const CACHE_NAME = 'companero-${buildHash}';`);

@@ -96,3 +96,8 @@ textarea:-moz-autofill {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+.dialog-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: grid; place-items: center; z-index: 1000; }
+.dialog { background: #1a1a1a; color: #fff; padding: 1.25rem; border-radius: 12px; max-width: 90vw; width: 22rem; }
+.dialog-message { margin: 0 0 1rem; }
+.dialog-actions { display: flex; gap: .5rem; justify-content: flex-end; }

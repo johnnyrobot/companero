@@ -23,6 +23,8 @@ async function fixture() {
     '<link rel="stylesheet" href="./styles.css">' +
     '<script src="./translations.js"></script>' +
     '<script src="./app.js" defer></script>');
+  await mkdir(join(src, 'src'), { recursive: true });
+  await writeFile(join(src, 'src', 'dialogs.js'), 'export function confirmDialog(){}');
   return { src, out };
 }
 
@@ -84,10 +86,34 @@ test('throws when manifest icon src is not in hashes', async () => {
     '<link rel="stylesheet" href="./styles.css">' +
     '<script src="./translations.js"></script>' +
     '<script src="./app.js" defer></script>');
+  await mkdir(join(src, 'src'), { recursive: true });
+  await writeFile(join(src, 'src', 'dialogs.js'), 'export function confirmDialog(){}');
 
   await assert.rejects(
     () => build({ srcDir: src, outDir: out }),
     /manifest icon src not in hashes: icons\/missing\.png/,
     'should throw with message naming missing icon'
   );
+});
+
+test('copies src modules verbatim with stable names', async () => {
+  const { src, out } = await fixture();
+  await build({ srcDir: src, outDir: out });
+  const mod = await readFile(join(out, 'src', 'dialogs.js'), 'utf8');
+  assert.equal(mod, 'export function confirmDialog(){}', 'src/dialogs.js copied byte-for-byte');
+});
+
+test('src module changes bust the build hash (CACHE_NAME)', async () => {
+  const a = await fixture();
+  const r1 = await build({ srcDir: a.src, outDir: a.out });
+  await writeFile(join(a.src, 'src', 'dialogs.js'), 'export function confirmDialog(){ return 1; }');
+  const r2 = await build({ srcDir: a.src, outDir: a.out });
+  assert.notEqual(r1.buildHash, r2.buildHash, 'changing a src module must change buildHash');
+});
+
+test('precaches src modules in APP_SHELL', async () => {
+  const { src, out } = await fixture();
+  await build({ srcDir: src, outDir: out });
+  const sw = await readFile(join(out, 'service-worker.js'), 'utf8');
+  assert.match(sw, /\.\/src\/dialogs\.js/, 'src module present in APP_SHELL');
 });

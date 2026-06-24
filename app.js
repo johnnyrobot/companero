@@ -1,4 +1,5 @@
 // app.js
+import { confirmDialog, alertDialog } from './src/dialogs.js';
 
 const STORAGE_KEY = 'student_planner.classes.v1';
 const PROFILE_KEY = 'course_companion.profile.v1';
@@ -181,7 +182,7 @@ function getFilteredClasses() {
 if (deleteAllBtn) {
   deleteAllBtn.addEventListener('click', async () => {
     const message = t('deleteEverythingConfirm');
-    const ok = confirm(message);
+    const ok = await confirmDialog(message);
     if (!ok) return;
     try {
       // Try to fetch latest SW before clearing (best effort)
@@ -268,8 +269,8 @@ function renderList() {
     delBtn.className = 'btn';
     delBtn.type = 'button';
     delBtn.textContent = t('delete');
-    delBtn.addEventListener('click', () => {
-      if (confirm(t('confirmDelete'))) deleteItem(item.id);
+    delBtn.addEventListener('click', async () => {
+      if (await confirmDialog(t('confirmDelete'))) deleteItem(item.id);
     });
 
     const upBtn = document.createElement('button');
@@ -332,12 +333,12 @@ function exportData() {
 function importData(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
       const parsed = JSON.parse(reader.result);
       const arr = parsed && Array.isArray(parsed.classes) ? parsed.classes : (Array.isArray(parsed) ? parsed : null);
       if (!arr) throw new Error('Invalid format');
-      if (!confirm(t('importReplaceConfirm'))) return;
+      if (!(await confirmDialog(t('importReplaceConfirm')))) return;
       // Basic validation and normalization
       const cleaned = arr.map((c) => ({
         id: c.id || uid(),
@@ -350,9 +351,9 @@ function importData(file) {
       state.classes = cleaned;
       saveClasses(state.classes);
       renderList();
-      alert(t('importComplete'));
+      await alertDialog(t('importComplete'));
     } catch (e) {
-      alert(t('importFailed'));
+      await alertDialog(t('importFailed'));
       console.error(e);
     } finally {
       importInput.value = '';
@@ -506,7 +507,7 @@ if (checkUpdatesBtn) {
       const reg = await navigator.serviceWorker.getRegistration();
       if (!reg) {
         const msg = t('upToDate');
-        alert(msg);
+        await alertDialog(msg);
         announce(msg);
         return;
       }
@@ -531,19 +532,19 @@ if (checkUpdatesBtn) {
       }
 
       // Slight delay to allow any async state to settle
-      setTimeout(() => {
+      setTimeout(async () => {
         if (reg.waiting) {
           showUpdateBanner(reg.waiting);
         } else {
           const msg = t('upToDate');
-          alert(msg);
+          await alertDialog(msg);
           announce(msg);
         }
       }, 400);
     } catch (e) {
       console.warn('Update check failed', e);
       const msg = t('upToDate');
-      alert(msg);
+      await alertDialog(msg);
       announce(msg);
     }
   });
@@ -573,8 +574,8 @@ function setupInstallButton() {
     // We just show the button and explain how to 'Add to Home Screen'.
     installBtn.hidden = false;
     if (iosHintEl) iosHintEl.hidden = false;
-    installBtn.addEventListener('click', () => {
-      alert(t('installIosHint'));
+    installBtn.addEventListener('click', async () => {
+      await alertDialog(t('installIosHint'));
     });
     return;
   }

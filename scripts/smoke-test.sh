@@ -20,4 +20,7 @@ echo "$hdr" | grep -iq 'cache-control: public, max-age=31536000, immutable' || {
 
 # service worker must be no-cache
 curl -sI http://localhost:8099/service-worker.js | grep -iq 'cache-control: no-cache' || { echo "FAIL: SW not no-cache"; exit 1; }
+
+# stable-named ES module must be no-cache
+curl -sI http://localhost:8099/src/dialogs.js | grep -qi 'cache-control: no-cache' || { echo "FAIL: /src/dialogs.js not no-cache"; exit 1; }
 echo "SMOKE OK"
