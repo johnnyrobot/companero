@@ -16,6 +16,9 @@ yarn-error.log*
 # Node (in case you add tooling later)
 node_modules/
 
+# Local agent/tooling scaffolding (keep internal tooling out of the public repo)
+.claude/
+
 # Env
 .env
 .env.*.local
