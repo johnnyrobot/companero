@@ -1,5 +1,8 @@
 # Course Companion (companero) — PWA
 
+[![CI](https://github.com/johnnyrobot/companero/actions/workflows/ci.yml/badge.svg)](https://github.com/johnnyrobot/companero/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Minimal, accessible Progressive Web App for students to store class info locally on their device. No accounts. No cloud. Works offline.
 
 ## Features
@@ -52,6 +55,17 @@ You can run the header/cache smoke test directly:
 ```bash
 bash scripts/smoke-test.sh     # builds image, runs container, asserts cache + security headers
 ```
+
+## Run the published image (GHCR)
+
+CI publishes a prebuilt image to GitHub Container Registry on every push to `main`:
+
+```bash
+docker run --rm -p 6969:80 ghcr.io/johnnyrobot/companero:latest
+# open http://localhost:6969
+```
+
+> The GHCR package may be private by default — set it public in the repo's **Packages** settings for anonymous `docker pull` to work.
 
 ## PWA install
 - In Chrome/Edge: look for the install icon in the address bar, or menu → Install App.

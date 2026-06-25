@@ -81,6 +81,9 @@ bash scripts/smoke-test.sh   # builds image, runs container, asserts cache + sec
 - `service-worker.js` — exports pure helpers `routeFor(req)` and `isCacheable(res)` for
   unit testing; the real handlers live behind an `isSW` guard. Network-first for
   navigations, cache-first for immutable assets, and **only caches 2xx responses**.
+  Because it uses ES `export`, `app.js` registers it as a **module worker**
+  (`register('./service-worker.js', { type: 'module' })`) — a classic worker would
+  reject `export` and silently fail to register.
 - `nginx.conf` + `nginx/security-headers.conf` — hashed assets → `immutable`;
   `index.html`/SW/manifest/`/src/` → `no-cache`; security headers `include`d per-location.
   (The hashed-asset `location` regex is quoted — `"\.[0-9a-f]{8}\.(...)$"` — because an
@@ -125,3 +128,9 @@ bash scripts/smoke-test.sh   # builds image, runs container, asserts cache + sec
   before the deferred module, keeping `t()` global). There are **no inline `on*=`
   handlers** — keep it that way so module scope doesn't break wiring.
 - Any new `src/` module: add it to `COPIED_MODULES` in `build.mjs` (or it'll serve stale).
+- **The SW must stay a module worker.** `service-worker.js` uses ES `export` (shared with
+  its tests); `app.js` registers it with `{ type: 'module' }`. Revert to a classic worker
+  and the SW silently fails to register (offline/caching dead). A regression test in
+  `tests/sw-routing.test.mjs` pins this — but **verify SW registration in a real browser**;
+  Node unit tests and the Docker header-curl smoke do not exercise it. (This exact bug
+  shipped through Phase 2 and was only caught by a browser smoke.)

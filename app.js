@@ -453,7 +453,10 @@ studentEmailInput?.addEventListener('input', scheduleProfileSave);
 // PWA: register service worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js').then((reg) => {
+    // Module worker: service-worker.js uses ES `export` (shared with unit tests),
+    // which a classic worker rejects at evaluation time. type:'module' is supported
+    // across evergreen browsers and matches the app's module-based architecture.
+    navigator.serviceWorker.register('./service-worker.js', { type: 'module' }).then((reg) => {
       // If there's already a waiting SW, show banner
       if (reg.waiting) {
         showUpdateBanner(reg.waiting);
