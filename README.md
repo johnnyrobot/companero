@@ -67,6 +67,7 @@ bash scripts/smoke-test.sh     # builds image, runs container, asserts cache + s
 GitHub Actions (`.github/workflows/ci.yml`) runs on pushes/PRs:
 1. **test** — install, `npm test`, `npm run build` on Node 22.
 2. **build-and-smoke-test** — builds the Docker image and asserts cache + security headers against a running container.
+3. **deploy** — on push to `main` (after the above pass), builds and publishes the image to `ghcr.io/johnnyrobot/companero` (`:latest` + commit SHA). No external secrets — uses the built-in `GITHUB_TOKEN`.
 
 ## Next steps (optional)
 - Localize dialog button labels (`OK`/`Cancel`) via the existing `t()` i18n

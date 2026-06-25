@@ -110,8 +110,12 @@ bash scripts/smoke-test.sh   # builds image, runs container, asserts cache + sec
   cross-tab/resilience needs emerge — the plan's Task 11 has a full (unexecuted) recipe.
 - **Enable HSTS** in `nginx/security-headers.conf` (currently commented) once served
   over TLS / behind a TLS-terminating proxy.
-- **No CD.** CI builds + smoke-tests the image but deploys nowhere. Add a deploy step if
-  desired.
+- **CD → GHCR.** On push to `main` (after `test` + `build-and-smoke-test` pass), CI builds
+  and pushes the image to `ghcr.io/johnnyrobot/companero` (`:latest` + `:<sha>`) using
+  `GITHUB_TOKEN` — no external secrets. PRs do not deploy (guarded by an `if` on
+  push-to-main). There's **no running-host deploy / live URL** yet — a host must pull the
+  image. The GHCR package may default to private; set it public to match the repo if
+  wanted. For a live host later, swap in a Cloud Run / Fly.io / VPS step (needs provider creds).
 
 ## 7. Gotchas
 
