@@ -1,6 +1,6 @@
 # Companero — Session Handoff
 
-_Last updated: 2026-06-25 · HEAD `9db81d0` on `main` (pushed, in sync with `origin`)._
+_Last updated: 2026-06-25 · `main` (HEAD `66f87d7`+, plus this update), pushed & in sync with `origin`. Repo is **public**, MIT-licensed._
 
 This doc orients a fresh session with zero prior context. Read it first.
 
@@ -45,14 +45,20 @@ icon-ratio comments, CI/smoke readiness failure messages, trimmed `.dockerignore
 
 ## 3. Repo & remotes (important, non-obvious)
 
-- **`origin` → `https://github.com/johnnyrobot/companero.git` (PRIVATE).** This is the
-  canonical remote. `main` tracks `origin/main` and is in sync.
+- **`origin` → `https://github.com/johnnyrobot/companero.git` — now PUBLIC, MIT-licensed.**
+  Canonical remote; `main` tracks `origin/main` and is in sync. Since it's public, treat
+  everything committed (and all history) as world-readable — **no secrets, ever.**
 - `gh` CLI active account is **`johnnyrobot`**. Two other keyring accounts
   (`johnnyphung-laccd`, `projectremedyai`) have **invalid tokens** — don't use them.
   The original `origin` pointed at `johnnyphung-laccd/companero`, which **does not exist**;
   it was repointed to `johnnyrobot/companero`.
-- Branching: feature work was done on short-lived branches off `main` and fast-forward
+- Branching: feature work is done on short-lived branches off `main`, fast-forward
   merged, then deleted. `main` is the only branch.
+- **Internal tooling stays out of the repo:** `.claude/` is gitignored (the old
+  `.claude/workflows/deep-research-retry.js` was removed before going public), and all
+  SDD scratch under `.superpowers/` is gitignored. Keep internal/agent artifacts there.
+- One early commit is authored by a local git identity (`LACCD <laccd@16-MacBook-Pro.local>`)
+  and is visible in public history — harmless (no real email/secret), left as-is.
 
 ## 4. How to work here
 
@@ -91,6 +97,9 @@ bash scripts/smoke-test.sh   # builds image, runs container, asserts cache + sec
 - A durable SDD progress ledger lives at `.superpowers/sdd/progress.md`
   (**gitignored** — present in this working dir, absent from a fresh clone). It records
   every task's commit range and review outcome.
+- **Licensing & visibility:** MIT (`LICENSE` at root). `README.md` is current as of the
+  public release. The repo is **public** — never commit secrets, internal notes, or
+  customer data.
 
 ## 6. Candidate future work (none urgent)
 
